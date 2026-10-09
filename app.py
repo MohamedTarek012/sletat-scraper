@@ -1,4 +1,5 @@
 import datetime as dt
+import pandas as pd
 import requests
 import streamlit as st
 from sletat_scraper import BASE, HEADERS, KEEP_COLUMNS, scrape, to_dataframe
@@ -21,6 +22,13 @@ def lookup(method, **params):
         return _fetch(method, tuple(sorted(params.items())))
     except Exception:
         return {}
+
+
+def tourists_label(s):
+    label = f"{s['adults']} adult{'s' if s['adults'] > 1 else ''}"
+    if s["kids"]:
+        label += " + children " + ", ".join(map(str, s["kids_ages"]))
+    return label
 
 
 def pick_one(label, options, default_id):
@@ -67,7 +75,7 @@ with st.sidebar:
     label = f"{adults} adult{'s' if adults > 1 else ''}"
     if kids_ages:
         label += f", {len(kids_ages)} child{'ren' if len(kids_ages) > 1 else ''}"
-    with st.popover(f"Tourists: {label}", use_container_width=True):
+    with st.popover(f"Tourists: {label}", width="stretch"):
         st.number_input("Adults", 1, 6, key="adults")
         for i, age in enumerate(kids_ages):
             c1, c2 = st.columns([4, 1], vertical_alignment="center")
@@ -79,12 +87,16 @@ with st.sidebar:
             for age in range(18):
                 grid[age % 2].button(
                     f"{age} {'year' if age == 1 else 'years'}", key=f"add_kid_{age}",
-                    on_click=kids_ages.append, args=(age,), use_container_width=True,
+                    on_click=kids_ages.append, args=(age,), width="stretch",
                 )
     kids = len(kids_ages)
     currency = st.selectbox("Currency", ["USD", "EUR", "RUB"])
     mode = st.radio("Rows", ["One per hotel", "All tours"])
-    go = st.button("Search", type="primary", use_container_width=True)
+    compare = st.checkbox(
+        "Compare without / with children", disabled=not kids_ages,
+        help="Runs the search twice: adults only, and adults with the children above.",
+    )
+    go = st.button("Search", type="primary", width="stretch")
 
 if go:
     search = {
@@ -96,31 +108,65 @@ if go:
         "adults": int(adults), "kids": int(kids), "kids_ages": [int(x) for x in kids_ages], "currency": currency,
         "group_by": "hotelsPopularity" if mode == "One per hotel" else "",
     }
-    with st.spinner("Loading tours..."):
-        try:
-            st.session_state["df"] = to_dataframe(scrape(search), search)
-        except Exception as e:
-            st.error(f"Request failed: {e}")
+    searches = {"With children" if kids else "Results": search}
+    if compare and kids:
+        searches = {"Without children": {**search, "kids": 0, "kids_ages": []},
+                    "With children": search}
+    results = {}
+    try:
+        for name, s in searches.items():
+            with st.spinner(f"Loading tours: {name.lower()}..."):
+                df = to_dataframe(scrape(s), s)
+            if not df.empty:
+                df.insert(0, "tourists", tourists_label(s))
+            results[name] = df
+        st.session_state["results"] = results
+    except Exception as e:
+        st.error(f"Request failed: {e}")
 
-df = st.session_state.get("df")
-if df is None:
+results = st.session_state.get("results")
+if results is None:
     st.info("Choose your filters on the left and press Search.")
-elif df.empty:
+elif all(df.empty for df in results.values()):
     st.warning("No results for these filters.")
 else:
-    st.success(f"{len(df)} rows")
+    full = {n: df for n, df in results.items() if not df.empty}
+    first = next(iter(full.values()))
+    dates = f"{first['depart_from'].iloc[0]}_{first['depart_to'].iloc[0]}"
+    all_cols = list(dict.fromkeys(c for df in full.values() for c in df.columns))
+    defaults = (["tourists"] if len(results) > 1 else []) + KEEP_COLUMNS
     cols = st.multiselect(
-        "Columns (empty = all)", list(df.columns),
-        default=[c for c in KEEP_COLUMNS if c in df.columns],
+        "Columns (empty = all)", all_cols,
+        default=[c for c in defaults if c in all_cols],
     )
-    view = df[cols] if cols else df
-    st.dataframe(view, use_container_width=True, hide_index=True)
-    st.download_button(
-        "Download CSV",
-        view.to_csv(index=False).encode("utf-8-sig"),
-        file_name=f"Badawistaa_{df['depart_from'].iloc[0]}_{df['depart_to'].iloc[0]}.csv",
-        mime="text/csv",
-    )
+    views = {n: df[[c for c in cols if c in df.columns]] if cols else df
+             for n, df in full.items()}
+    if len(views) > 1:
+        views["Together"] = pd.concat(views.values(), ignore_index=True)
+
+    # download buttons at the top: each data set alone, or all together
+    for col, (name, view) in zip(st.columns(len(views)), views.items()):
+        col.download_button(
+            f"Download {name.lower()} ({len(view)} rows)",
+            view.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"Badawistaa_{name.replace(' ', '_')}_{dates}.csv",
+            mime="text/csv", width="stretch",
+        )
+
+    for name, df in results.items():
+        if df.empty:
+            st.warning(f"No results: {name.lower()}.")
+    tabs = st.tabs(list(views) + (["Price comparison"] if len(full) > 1 else []))
+    for tab, view in zip(tabs, views.values()):
+        tab.dataframe(view, width="stretch", hide_index=True)
+    if len(full) > 1:
+        # cheapest price per hotel in each data set, side by side
+        prices = pd.concat(
+            [df.groupby("hotel_name")["price"].min().rename(f"price {n.lower()}")
+             for n, df in full.items()], axis=1,
+        )
+        prices["difference"] = prices.iloc[:, -1] - prices.iloc[:, 0]
+        tabs[-1].dataframe(prices.reset_index(), width="stretch", hide_index=True)
 
 st.divider()
 st.caption("Developed by Mo")
