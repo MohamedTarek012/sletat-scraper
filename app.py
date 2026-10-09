@@ -60,12 +60,28 @@ with st.sidebar:
     c1, c2 = st.columns(2)
     nights_min = c1.number_input("Nights min", 1, 30, 7)
     nights_max = c2.number_input("Nights max", 1, 30, 7)
-    adults = st.number_input("Adults", 1, 6, 2)
-    kids = st.number_input("Children", 0, 3, 0)
-    kids_ages = [
-        st.number_input(f"Child {i + 1} age", 0, 17, 5, key=f"kid_age_{i}")
-        for i in range(int(kids))
-    ]
+    # tourists picker, like sletat.ru: adults counter + tap an age to add a child
+    st.session_state.setdefault("adults", 2)
+    kids_ages = st.session_state.setdefault("kids_ages", [])
+    adults = st.session_state["adults"]
+    label = f"{adults} adult{'s' if adults > 1 else ''}"
+    if kids_ages:
+        label += f", {len(kids_ages)} child{'ren' if len(kids_ages) > 1 else ''}"
+    with st.popover(f"Tourists: {label}", use_container_width=True):
+        st.number_input("Adults", 1, 6, key="adults")
+        for i, age in enumerate(kids_ages):
+            c1, c2 = st.columns([4, 1], vertical_alignment="center")
+            c1.write(f"Child {i + 1}: {age} {'year' if age == 1 else 'years'}")
+            c2.button("✕", key=f"del_kid_{i}", on_click=kids_ages.pop, args=(i,))
+        if len(kids_ages) < 3:
+            st.markdown("**Add child** — choose age")
+            grid = st.columns(2)
+            for age in range(18):
+                grid[age % 2].button(
+                    f"{age} {'year' if age == 1 else 'years'}", key=f"add_kid_{age}",
+                    on_click=kids_ages.append, args=(age,), use_container_width=True,
+                )
+    kids = len(kids_ages)
     currency = st.selectbox("Currency", ["USD", "EUR", "RUB"])
     mode = st.radio("Rows", ["One per hotel", "All tours"])
     go = st.button("Search", type="primary", use_container_width=True)
