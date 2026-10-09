@@ -149,7 +149,7 @@ else:
         col.download_button(
             f"Download {name.lower()} ({len(view)} rows)",
             view.to_csv(index=False).encode("utf-8-sig"),
-            file_name=f"Badawistaa_{name.replace(' ', '_')}_{dates}.csv",
+            file_name=f"Competitors_PKGS_Analysis_{name.replace(' ', '_')}_{dates}.csv",
             mime="text/csv", width="stretch",
         )
 
@@ -160,13 +160,21 @@ else:
     for tab, view in zip(tabs, views.values()):
         tab.dataframe(view, width="stretch", hide_index=True)
     if len(full) > 1:
-        # cheapest price per hotel in each data set, side by side
+        # cheapest price per hotel + room + meal in each data set, side by side;
+        # only rooms found in both data sets are compared
+        keys = ["hotel_name", "room", "meal"]
         prices = pd.concat(
-            [df.groupby("hotel_name")["price"].min().rename(f"price {n.lower()}")
-             for n, df in full.items()], axis=1,
+            [df.groupby(keys)["price"].min().rename(f"price {n.lower()}")
+             for n, df in full.items()], axis=1, join="inner",
         )
         prices["difference"] = prices.iloc[:, -1] - prices.iloc[:, 0]
-        tabs[-1].dataframe(prices.reset_index(), width="stretch", hide_index=True)
+        with tabs[-1]:
+            if prices.empty:
+                st.info("No room appears in both data sets. "
+                        "Try Rows = All tours to get every room of each hotel.")
+            else:
+                st.caption(f"{len(prices)} rooms found in both data sets")
+                st.dataframe(prices.reset_index(), width="stretch", hide_index=True)
 
 st.divider()
 st.caption("Developed by Mo")
