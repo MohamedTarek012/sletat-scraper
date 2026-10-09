@@ -97,7 +97,7 @@ else:
     st.download_button(
         "Download CSV",
         view.to_csv(index=False).encode("utf-8-sig"),
-        file_name=f"sletat_{dt.datetime.now():%Y%m%d_%H%M}.csv",
+        file_name=f"Badawistaa_{df['depart_from'].iloc[0]}_{df['depart_to'].iloc[0]}.csv",
         mime="text/csv",
     )
 
