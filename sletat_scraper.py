@@ -29,7 +29,8 @@ PAGE_SIZE = 20
 OUTPUT = "sletat_tours.csv"
 # columns to keep in the output (empty list = keep all)
 KEEP_COLUMNS = [
-    "hotel_name", "stars", "room", "meal", "depart_date", "nights",
+    "hotel_name", "stars", "room", "meal", "depart_from", "depart_to",
+    "depart_date", "return_date", "nights",
     "price", "currency", "operator_name", "hotel_url",
 ]
 # -------------------------------------------
@@ -115,7 +116,7 @@ def scrape(s):
     return rows
 
 
-def to_dataframe(rows):
+def to_dataframe(rows, s=None):
     if not rows:
         return pd.DataFrame()
     width = max(len(r) for r in rows)
@@ -125,11 +126,14 @@ def to_dataframe(rows):
     df["price"] = pd.to_numeric(price[0].str.replace(r"[\s,]", "", regex=True), errors="coerce")
     df["currency"] = price[1]
     df["hotel_url"] = "https://sletat.ru" + df["hotel_url"].astype(str)
+    if s:  # the search window, dd.mm.yyyy like depart_date
+        df["depart_from"] = s["date_from"].replace("/", ".")
+        df["depart_to"] = s["date_to"].replace("/", ".")
     return df
 
 
 if __name__ == "__main__":
-    df = to_dataframe(scrape(SEARCH))
+    df = to_dataframe(scrape(SEARCH), SEARCH)
     if df.empty:
         print("No results - check the SEARCH settings.")
     else:

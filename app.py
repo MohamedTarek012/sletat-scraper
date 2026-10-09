@@ -77,7 +77,7 @@ if go:
     }
     with st.spinner("Loading tours..."):
         try:
-            st.session_state["df"] = to_dataframe(scrape(search))
+            st.session_state["df"] = to_dataframe(scrape(search), search)
         except Exception as e:
             st.error(f"Request failed: {e}")
 
