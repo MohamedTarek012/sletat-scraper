@@ -3,8 +3,8 @@ import requests
 import streamlit as st
 from sletat_scraper import BASE, HEADERS, KEEP_COLUMNS, scrape, to_dataframe
 
-st.set_page_config(page_title="Sletat scraper", layout="wide")
-st.title("Sletat tours scraper")
+st.set_page_config(page_title="Badawistaa", layout="wide")
+st.title("Badawistaa")
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -100,3 +100,6 @@ else:
         file_name=f"sletat_{dt.datetime.now():%Y%m%d_%H%M}.csv",
         mime="text/csv",
     )
+
+st.divider()
+st.caption("Developed by Mo")
