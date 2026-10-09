@@ -22,6 +22,7 @@ SEARCH = {
     "nights_min": 7, "nights_max": 7,
     "date_from": "17/10/2026", "date_to": "25/10/2026",
     "adults": 2, "kids": 0,
+    "kids_ages": [],                  # one age per child, e.g. [5, 9]
     "currency": "USD",
     "group_by": "hotelsPopularity",   # one row per hotel; try "" for all tours
 }
@@ -63,7 +64,8 @@ def build_params(s, request_id=0, page=1):
         "s_hotelIsNotInStop": "true", "s_hasTickets": "true",
         "s_ticketsIncluded": "true", "updateResult": 1,
         "visibleOperators": csv(s["operators"]), "hotels": csv(s["hotels"]),
-        "s_adults": s["adults"], "s_kids": s["kids"], "s_kids_ages": "",
+        "s_adults": s["adults"], "s_kids": s["kids"],
+        "s_kids_ages": csv(s.get("kids_ages", [])),
         "s_departFrom": s["date_from"], "s_departTo": s["date_to"],
         "s_priceMin": 0, "s_priceMax": 0,
         "calcFullPrice": 1, "showHotelFacilities": 1, "requestSource": 1,

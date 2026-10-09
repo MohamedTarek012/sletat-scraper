@@ -3,8 +3,8 @@ import requests
 import streamlit as st
 from sletat_scraper import BASE, HEADERS, KEEP_COLUMNS, scrape, to_dataframe
 
-st.set_page_config(page_title="Badawistaa", layout="wide")
-st.title("Badawistaa")
+st.set_page_config(page_title="Competitors PKG’S Analysis", layout="wide")
+st.title("Competitors PKG’S Analysis")
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -61,6 +61,11 @@ with st.sidebar:
     nights_min = c1.number_input("Nights min", 1, 30, 7)
     nights_max = c2.number_input("Nights max", 1, 30, 7)
     adults = st.number_input("Adults", 1, 6, 2)
+    kids = st.number_input("Children", 0, 3, 0)
+    kids_ages = [
+        st.number_input(f"Child {i + 1} age", 0, 17, 5, key=f"kid_age_{i}")
+        for i in range(int(kids))
+    ]
     currency = st.selectbox("Currency", ["USD", "EUR", "RUB"])
     mode = st.radio("Rows", ["One per hotel", "All tours"])
     go = st.button("Search", type="primary", use_container_width=True)
@@ -72,7 +77,7 @@ if go:
         "nights_min": int(nights_min), "nights_max": int(nights_max),
         "date_from": date_from.strftime("%d/%m/%Y"),
         "date_to": date_to.strftime("%d/%m/%Y"),
-        "adults": int(adults), "kids": 0, "currency": currency,
+        "adults": int(adults), "kids": int(kids), "kids_ages": [int(x) for x in kids_ages], "currency": currency,
         "group_by": "hotelsPopularity" if mode == "One per hotel" else "",
     }
     with st.spinner("Loading tours..."):
